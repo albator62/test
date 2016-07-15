@@ -1,41 +1,23 @@
-#
-# Docker configuration for Plex Media server
-#
-FROM ${image_from}
-MAINTAINER Arnaud HIEN <arnaud.hien@gmail.com>
+FROM linuxserver/baseimage
+MAINTAINER Stian Larsen <lonixx@gmail.com>
 
-# Versions
-ENV PLEX_VERSION 1.0.0.2261-a17e99e
+# Install Plex
+RUN apt-get -q update && \
+apt-get install -qy dbus avahi-daemon wget && \
+curl -L 'https://plex.tv/downloads/latest/1?channel=8&build=linux-ubuntu-x86_64&distro=ubuntu' -o /tmp/plexmediaserver.deb && \
+dpkg -i /tmp/plexmediaserver.deb && rm -f /tmp/plexmediaserver.deb && \
+apt-get clean && \
+rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-# Upgrade packages and install required packages for build
-RUN \
-        apt-get update && \
-	    apt-get -y dist-upgrade && \
-        apt-get -o Dpkg::Options::="--force-confold" --no-install-recommends -y install \
-            socat && \
-        rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
-#############################################
-# Plex Media Server Install
-#############################################
-# download and install Plex Media Server
-RUN \
-	curl -L https://downloads.plex.tv/plex-media-server/${PLEX_VERSION}/plexmediaserver_${PLEX_VERSION}_amd64.deb -o /tmp/plexmediaserver_${PLEX_VERSION}_amd64.deb && \
-	dpkg -i /tmp/plexmediaserver_${PLEX_VERSION}_amd64.deb && \
-	rm -f /tmp/plexmediaserver_${PLEX_VERSION}_amd64.deb
+#Adding Custom files
+COPY init/ /etc/my_init.d/
+COPY services/ /etc/service/
+RUN chmod -v +x /etc/service/*/run /etc/my_init.d/*.sh
 
-#########################
-# Customizations
-#########################
-# Add files to image
-ADD files /
+# Define /config in the configuration file not using environment variables
+COPY plexmediaserver /defaults/plexmediaserver
 
-# Configure image
-RUN \
-	chmod 0755 /usr/local/sbin/*
-
-# Mount configuration folders
-VOLUME [ "/var/lib/plexmediaserver" ]
-
-# Expose ports
-EXPOSE 32400
+#Mappings and ports
+VOLUME ["/config"]
+EXPOSE 32400 32400/udp 32469 32469/udp 5353/udp 1900/udp
